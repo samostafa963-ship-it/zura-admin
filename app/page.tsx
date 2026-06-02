@@ -2,7 +2,10 @@
 import { useState, useEffect, useRef } from 'react';
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'https://zura-web-production-42ca.up.railway.app';
-const ADMIN_PASSWORD = 'zura2025';
+const ADMINS = [
+  { username: 'admin', password: 'zura2025', name: 'مصطفى' },
+  { username: 'zura', password: 'zura@2025', name: 'أدمن زورا' },
+];
 
 interface Order { _id: string; name: string; phone: string; address: any; total: number; status: string; createdAt: string; items: any[]; paymentMethod: string; customer?: any; }
 interface Product { _id: string; name: string; price: number; old_price?: number; image: string; category: string; unit?: string; description?: string; discount?: number; sales_count?: number; }
@@ -41,14 +44,11 @@ const SIDEBAR_SECTIONS = [
     { id: 'sales', label: 'المبيعات', icon: '📊' },
     { id: 'customers', label: 'العملاء', icon: '👥' },
   ]},
-  { title: '', items: [
-    { id: 'settings', label: 'الإعدادات', icon: '⚙️' },
-  ]},
+  { title: '', items: [{ id: 'settings', label: 'الإعدادات', icon: '⚙️' }] },
 ];
 
 const BRANDS = ['جهينة','Nestlé','Pepsi','Coca-Cola',"Lay's",'دومتي','Nestlé','أرز الخيمي'];
 const BRAND_COLORS = ['#e8f5e9','#fce4ec','#e3f2fd','#ffebee','#fff8e1','#f3e5f5','#e8f5e9','#fff3e0'];
-
 const MOCK_OFFERS = [
   { t: '50% على جميع المشروبات', type: 'خصم على فئة', d: '50%', s: '20 مايو', e: '27 مايو', a: true },
   { t: 'خصم 15% على منتجات جهينة', type: 'خصم على براند', d: '15%', s: '18 مايو', e: '25 مايو', a: true },
@@ -107,8 +107,10 @@ function SalesChart({ orders }: { orders: Order[] }) {
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
+  const [adminName, setAdminName] = useState('');
+  const [username, setUsername] = useState('');
   const [pw, setPw] = useState('');
-  const [pwErr, setPwErr] = useState(false);
+  const [loginErr, setLoginErr] = useState('');
   const [page, setPage] = useState('dashboard');
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -127,7 +129,12 @@ export default function AdminPage() {
   const prevCount = useRef(0);
 
   const notify = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
-  const login = () => { if (pw === ADMIN_PASSWORD) { setAuthed(true); setPwErr(false); } else setPwErr(true); };
+
+  const login = () => {
+    const admin = ADMINS.find(a => a.username === username && a.password === pw);
+    if (admin) { setAuthed(true); setAdminName(admin.name); setLoginErr(''); }
+    else setLoginErr('اسم المستخدم أو كلمة المرور غلط');
+  };
 
   const fetchAll = async () => {
     setLoading(true);
@@ -215,8 +222,8 @@ export default function AdminPage() {
   };
 
   const pendingCount = orders.filter(o => o.status === 'pending' || o.status === 'placed').length;
-  const todayRev = orders.filter(o => new Date(o.createdAt).toDateString() === new Date().toDateString()).reduce((s, o) => s + o.total, 0);
   const totalRev = orders.reduce((s, o) => s + o.total, 0);
+  const avgOrder = orders.length > 0 ? Math.round(totalRev / orders.length) : 0;
   const filteredProducts = products.filter(p => p.name?.toLowerCase().includes(searchQ.toLowerCase()));
   const topProducts = [...products].sort((a, b) => (b.sales_count || 0) - (a.sales_count || 0)).slice(0, 5);
   const allNavItems = SIDEBAR_SECTIONS.flatMap(s => s.items);
@@ -231,9 +238,17 @@ export default function AdminPage() {
           <h1 style={{ fontSize: 26, fontWeight: 900, color: '#1a1a1a', marginBottom: 6 }}>زورا أدمن</h1>
           <p style={{ fontSize: 13, color: '#aaa' }}>لوحة التحكم الإدارية</p>
         </div>
-        <input type="password" placeholder="كلمة المرور" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === 'Enter' && login()}
-          style={{ width: '100%', border: `1.5px solid ${pwErr ? '#ef4444' : '#f0e0ee'}`, borderRadius: 12, padding: '13px 18px', fontSize: 15, color: '#1a1a1a', outline: 'none', textAlign: 'right', marginBottom: 12, fontFamily: 'Tajawal', boxSizing: 'border-box', background: '#fafafa' }} />
-        {pwErr && <p style={{ color: '#ef4444', fontSize: 12, marginBottom: 12 }}>كلمة المرور غلط</p>}
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 5 }}>اسم المستخدم</label>
+          <input placeholder="admin" value={username} onChange={e => setUsername(e.target.value)} onKeyDown={e => e.key === 'Enter' && login()}
+            style={{ width: '100%', border: `1.5px solid ${loginErr ? '#ef4444' : '#f0e0ee'}`, borderRadius: 12, padding: '13px 18px', fontSize: 15, color: '#1a1a1a', outline: 'none', textAlign: 'right', fontFamily: 'Tajawal', boxSizing: 'border-box', background: '#fafafa' }} />
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 5 }}>كلمة المرور</label>
+          <input type="password" placeholder="••••••••" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === 'Enter' && login()}
+            style={{ width: '100%', border: `1.5px solid ${loginErr ? '#ef4444' : '#f0e0ee'}`, borderRadius: 12, padding: '13px 18px', fontSize: 15, color: '#1a1a1a', outline: 'none', textAlign: 'right', fontFamily: 'Tajawal', boxSizing: 'border-box', background: '#fafafa' }} />
+        </div>
+        {loginErr && <p style={{ color: '#ef4444', fontSize: 12, marginBottom: 12 }}>{loginErr}</p>}
         <button onClick={login} style={{ width: '100%', background: 'linear-gradient(135deg,#E91E8C,#c91678)', color: '#fff', border: 'none', borderRadius: 12, padding: 14, fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'Tajawal' }}>دخول</button>
       </div>
     </div>
@@ -299,7 +314,7 @@ export default function AdminPage() {
           ))}
         </nav>
         <div style={{ padding: '12px 10px', borderTop: '1px solid #f5f5f5' }}>
-          <div className="nav-item" style={{ color: '#ef4444' }} onClick={() => setAuthed(false)}>
+          <div className="nav-item" style={{ color: '#ef4444' }} onClick={() => { setAuthed(false); setUsername(''); setPw(''); }}>
             <span>⎋</span> تسجيل الخروج
           </div>
         </div>
@@ -310,14 +325,14 @@ export default function AdminPage() {
         {/* TOPBAR */}
         <div style={{ background: '#fff', padding: '14px 28px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#E91E8C,#ff6bb5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 15, fontWeight: 900 }}>أ</div>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#E91E8C,#ff6bb5)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 15, fontWeight: 900 }}>{adminName[0]}</div>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>أحمد محمد</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a' }}>{adminName}</div>
               <div style={{ fontSize: 11, color: '#aaa' }}>مدير المتجر</div>
             </div>
           </div>
           <div style={{ fontSize: 17, fontWeight: 900, color: '#1a1a1a' }}>
-            {page === 'dashboard' ? 'مرحباً بك، أحمد 👋' : allNavItems.find(i => i.id === page)?.label}
+            {page === 'dashboard' ? `مرحباً بك، ${adminName} 👋` : allNavItems.find(i => i.id === page)?.label}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button onClick={fetchAll} style={{ background: 'none', border: '1px solid #eee', borderRadius: 8, padding: '7px 12px', cursor: 'pointer', fontSize: 13, color: '#888', fontFamily: 'Tajawal' }}>{loading ? '...' : '↺'}</button>
@@ -334,14 +349,14 @@ export default function AdminPage() {
           {/* ═══ DASHBOARD ═══ */}
           {page === 'dashboard' && (
             <div>
-              {/* Stats */}
+              {/* Stats — real data only */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12, marginBottom: 20 }}>
                 {[
-                  { label: 'إجمالي المنتجات', val: products.length || 1254, sub: `${products.length} منتج`, data: [40,55,45,60,52,68,75] },
-                  { label: 'المبيعات', val: totalRev > 0 ? `${totalRev.toLocaleString()} ج` : '128,560 ر.س', sub: '+18% من الأسبوع الماضي', data: [80,95,75,110,90,120,130] },
-                  { label: 'العملاء الجدد', val: 632, sub: '+15% من الأسبوع الماضي', data: [50,65,55,80,70,85,90] },
-                  { label: 'متوسط قيمة الطلب', val: orders.length > 0 ? `${Math.round(totalRev / orders.length)} ج` : '88.2 ر.س', sub: '+8% من الأسبوع الماضي', data: [70,75,72,80,78,85,88] },
-                  { label: 'الطلبات', val: orders.length || 1458, sub: '+23% من الأسبوع الماضي', data: [60,80,70,95,85,100,110] },
+                  { label: 'إجمالي المنتجات', val: products.length, sub: `${categories.length} قسم`, data: [0,0,0,0,0,0,products.length] },
+                  { label: 'إجمالي الإيرادات', val: `${totalRev.toLocaleString()} ج`, sub: `${orders.filter(o=>new Date(o.createdAt).toDateString()===new Date().toDateString()).reduce((s,o)=>s+o.total,0)} ج اليوم`, data: [0,0,0,0,0,0,totalRev] },
+                  { label: 'إجمالي الطلبات', val: orders.length, sub: `${pendingCount} طلب جديد`, data: [0,0,0,0,0,0,orders.length] },
+                  { label: 'متوسط قيمة الطلب', val: avgOrder > 0 ? `${avgOrder} ج` : '0 ج', sub: 'متوسط الطلبات', data: [0,0,0,0,0,0,avgOrder] },
+                  { label: 'البنرات', val: banners.length, sub: `${banners.filter(b=>b.isActive).length} نشط`, data: [0,0,0,0,0,0,banners.length] },
                 ].map((s, i) => (
                   <div key={i} className="card" style={{ padding: '16px 18px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
@@ -356,25 +371,19 @@ export default function AdminPage() {
 
               {/* Row 2 */}
               <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr 260px', gap: 14, marginBottom: 20 }}>
-                {/* Recent orders */}
                 <div className="card">
                   <div style={{ padding: '13px 16px', borderBottom: '1px solid #f5f5f5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 13, fontWeight: 800 }}>الطلبات الأخيرة</span>
                     <button className="btn-ghost" onClick={() => setPage('orders')}>عرض الكل</button>
                   </div>
-                  {(orders.length > 0 ? orders : [
-                    { _id: '1', name: 'سارة محمد', phone: '', total: 128.50, status: 'delivered', createdAt: '', items: [], address: '', paymentMethod: '' },
-                    { _id: '2', name: 'محمد علي', phone: '', total: 89.00, status: 'onway', createdAt: '', items: [], address: '', paymentMethod: '' },
-                    { _id: '3', name: 'أحمد سالم', phone: '', total: 45.30, status: 'preparing', createdAt: '', items: [], address: '', paymentMethod: '' },
-                    { _id: '4', name: 'نورة خالد', phone: '', total: 78.90, status: 'cancelled', createdAt: '', items: [], address: '', paymentMethod: '' },
-                    { _id: '5', name: 'فاطمة حسن', phone: '', total: 98.50, status: 'delivered', createdAt: '', items: [], address: '', paymentMethod: '' },
-                  ] as Order[]).slice(0, 5).map((o, i, arr) => {
+                  {orders.length === 0 && <div style={{ padding: 32, textAlign: 'center', color: '#ccc', fontSize: 13 }}>لا توجد طلبات بعد</div>}
+                  {orders.slice(0, 5).map((o, i, arr) => {
                     const st = STATUS[o.status] || STATUS.pending;
                     return (
                       <div key={o._id} style={{ padding: '10px 14px', borderBottom: i < arr.length - 1 ? '1px solid #f8f8f8' : 'none', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => { setSelectedOrder(o); setPage('orders'); }}>
                         <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#fce8f5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 900, color: '#E91E8C', flexShrink: 0 }}>{(o.name || '؟')[0]}</div>
                         <div style={{ flex: 1, overflow: 'hidden' }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.name}</div>
+                          <div style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.name || o.customer?.name}</div>
                           <div style={{ fontSize: 11, color: '#aaa' }}>{o.total} ج</div>
                         </div>
                         <span className="badge" style={{ background: st.bg, color: st.color, fontSize: 10 }}>{st.label}</span>
@@ -383,33 +392,30 @@ export default function AdminPage() {
                   })}
                 </div>
 
-                {/* Chart */}
                 <div className="card" style={{ padding: '16px 20px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 800 }}>المبيعات</div>
-                      <div style={{ fontSize: 11, color: '#aaa' }}>آخر 7 أيام</div>
-                    </div>
-                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 4 }}>المبيعات</div>
+                  <div style={{ fontSize: 11, color: '#aaa', marginBottom: 16 }}>آخر 7 أيام</div>
                   <SalesChart orders={orders} />
                 </div>
 
-                {/* Donut */}
                 <div className="card" style={{ padding: '16px 18px' }}>
                   <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 14 }}>توزيع الطلبات</div>
                   <div style={{ position: 'relative', width: 120, height: 120, margin: '0 auto 14px' }}>
                     <svg width={120} height={120} viewBox="0 0 120 120">
-                      <circle cx={60} cy={60} r={46} fill="none" stroke="#fce8f5" strokeWidth={16} />
-                      <circle cx={60} cy={60} r={46} fill="none" stroke="#E91E8C" strokeWidth={16} strokeDasharray={`${2 * Math.PI * 46 * 0.22} ${2 * Math.PI * 46 * 0.78}`} strokeDashoffset={2 * Math.PI * 46 * 0.25} />
-                      <circle cx={60} cy={60} r={46} fill="none" stroke="#10b981" strokeWidth={16} strokeDasharray={`${2 * Math.PI * 46 * 0.42} ${2 * Math.PI * 46 * 0.58}`} strokeDashoffset={-2 * Math.PI * 46 * -0.03} />
-                      <circle cx={60} cy={60} r={46} fill="none" stroke="#3b82f6" strokeWidth={16} strokeDasharray={`${2 * Math.PI * 46 * 0.31} ${2 * Math.PI * 46 * 0.69}`} strokeDashoffset={-2 * Math.PI * 46 * 0.39} />
+                      <circle cx={60} cy={60} r={46} fill="none" stroke="#f5f5f5" strokeWidth={16} />
+                      {orders.length > 0 && (
+                        <>
+                          <circle cx={60} cy={60} r={46} fill="none" stroke="#E91E8C" strokeWidth={16} strokeDasharray={`${2*Math.PI*46*(orders.filter(o=>o.status==='preparing').length/orders.length)} ${2*Math.PI*46*(1-orders.filter(o=>o.status==='preparing').length/orders.length)}`} strokeDashoffset={2*Math.PI*46*0.25} />
+                          <circle cx={60} cy={60} r={46} fill="none" stroke="#10b981" strokeWidth={16} strokeDasharray={`${2*Math.PI*46*(orders.filter(o=>o.status==='delivered').length/orders.length)} ${2*Math.PI*46*(1-orders.filter(o=>o.status==='delivered').length/orders.length)}`} strokeDashoffset={-2*Math.PI*46*0.03} />
+                        </>
+                      )}
                     </svg>
                   </div>
                   {[
-                    { l: 'قيد التجهيز', v: orders.filter(o => o.status === 'preparing').length || 321, c: '#E91E8C' },
-                    { l: 'قيد التوصيل', v: orders.filter(o => o.status === 'onway').length || 620, c: '#10b981' },
-                    { l: 'تم التوصيل', v: orders.filter(o => o.status === 'delivered').length || 450, c: '#3b82f6' },
-                    { l: 'ملغي', v: orders.filter(o => o.status === 'cancelled').length || 68, c: '#f0f0f0' },
+                    { l: 'قيد التجهيز', v: orders.filter(o => o.status === 'preparing').length, c: '#E91E8C' },
+                    { l: 'قيد التوصيل', v: orders.filter(o => o.status === 'onway').length, c: '#3b82f6' },
+                    { l: 'تم التوصيل', v: orders.filter(o => o.status === 'delivered').length, c: '#10b981' },
+                    { l: 'ملغي', v: orders.filter(o => o.status === 'cancelled').length, c: '#e0e0e0' },
                   ].map((d, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, fontSize: 12 }}>
                       <div style={{ width: 10, height: 10, borderRadius: '50%', background: d.c, flexShrink: 0 }} />
@@ -419,15 +425,13 @@ export default function AdminPage() {
                   ))}
                   <div style={{ marginTop: 14, background: 'linear-gradient(135deg,#E91E8C,#c91678)', borderRadius: 10, padding: '12px 14px' }}>
                     <div style={{ fontSize: 10, color: 'rgba(255,255,255,.7)', marginBottom: 3 }}>إجمالي الإيرادات</div>
-                    <div style={{ fontSize: 18, fontWeight: 900, color: '#fff' }}>{totalRev > 0 ? totalRev.toLocaleString() : '128,560'} ج</div>
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,.6)', marginTop: 2 }}>+18% من الأسبوع الماضي</div>
+                    <div style={{ fontSize: 18, fontWeight: 900, color: '#fff' }}>{totalRev.toLocaleString()} ج</div>
                   </div>
                 </div>
               </div>
 
               {/* Row 3 */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
-                {/* Top products */}
                 <div className="card">
                   <div style={{ padding: '13px 16px', borderBottom: '1px solid #f5f5f5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 13, fontWeight: 800 }}>الأكثر شيوعاً</span>
@@ -446,12 +450,9 @@ export default function AdminPage() {
                       <span style={{ fontSize: 13, fontWeight: 800, color: '#E91E8C', flexShrink: 0 }}>{p.price} ج</span>
                     </div>
                   ))}
-                  {products.length === 0 && (
-                    <div style={{ padding: 24, textAlign: 'center', color: '#ccc', fontSize: 13 }}>لا توجد بيانات بعد</div>
-                  )}
+                  {products.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: '#ccc', fontSize: 13 }}>لا توجد منتجات بعد</div>}
                 </div>
 
-                {/* Brands */}
                 <div className="card">
                   <div style={{ padding: '13px 16px', borderBottom: '1px solid #f5f5f5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 13, fontWeight: 800 }}>البراندز</span>
@@ -469,37 +470,30 @@ export default function AdminPage() {
 
               {/* Row 4 */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 200px', gap: 14 }}>
-                {/* Banners table */}
                 <div className="card">
                   <div style={{ padding: '13px 16px', borderBottom: '1px solid #f5f5f5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 13, fontWeight: 800 }}>البنرات</span>
                     <button className="btn-pink" style={{ padding: '6px 14px', fontSize: 12 }} onClick={() => setPage('banners')}>+ إضافة بنر جديد</button>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 50px 80px 70px 40px', gap: 6, padding: '8px 14px', background: '#f9f9f9', fontSize: 11, color: '#aaa', fontWeight: 700 }}>
-                    <span>البنر</span><span>الحالة</span><span>تاريخ البداية</span><span>الإجراءات</span><span></span>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 50px 70px 40px', gap: 6, padding: '8px 14px', background: '#f9f9f9', fontSize: 11, color: '#aaa', fontWeight: 700 }}>
+                    <span>البنر</span><span>الحالة</span><span>الإجراءات</span><span></span>
                   </div>
-                  {(banners.length > 0 ? banners.slice(0, 4) : [
-                    { _id: '1', title: 'عرض خصومات حتى 50%', isActive: true, order: 1, image: '' },
-                    { _id: '2', title: 'منتجات جهينة - جودة كل يوم', isActive: true, order: 2, image: '' },
-                    { _id: '3', title: 'توصيل سريع خلال 60 دقيقة', isActive: true, order: 3, image: '' },
-                    { _id: '4', title: 'أول طلبين توصيل مجاني', isActive: false, order: 4, image: '' },
-                  ] as Banner[]).map(b => (
-                    <div key={b._id} style={{ display: 'grid', gridTemplateColumns: '1fr 50px 80px 70px 40px', gap: 6, padding: '10px 14px', borderTop: '1px solid #f5f5f5', alignItems: 'center', fontSize: 12 }}>
+                  {banners.length === 0 && <div style={{ padding: 24, textAlign: 'center', color: '#ccc', fontSize: 13 }}>لا توجد بنرات بعد</div>}
+                  {banners.slice(0, 4).map(b => (
+                    <div key={b._id} style={{ display: 'grid', gridTemplateColumns: '1fr 50px 70px 40px', gap: 6, padding: '10px 14px', borderTop: '1px solid #f5f5f5', alignItems: 'center', fontSize: 12 }}>
                       <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.title}</div>
                       <span className="badge" style={{ background: b.isActive ? '#d1fae5' : '#f5f5f5', color: b.isActive ? '#10b981' : '#aaa', fontSize: 10 }}>{b.isActive ? 'نشط' : 'موقوف'}</span>
-                      <span style={{ color: '#aaa', fontSize: 11 }}>—</span>
                       <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="btn-ghost" style={{ padding: '3px 8px', fontSize: 11 }}>✏️</button>
-                        <button className="btn-red" style={{ padding: '3px 8px', fontSize: 11 }}>🗑️</button>
+                        <button className="btn-ghost" style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => setPage('banners')}>✏️</button>
+                        <button className="btn-red" style={{ padding: '3px 8px', fontSize: 11 }} onClick={() => deleteBanner(b._id)}>🗑️</button>
                       </div>
-                      <button className="toggle" onClick={() => banners.length > 0 ? toggleBanner(b) : undefined} style={{ background: b.isActive ? '#E91E8C' : '#e0e0e0' }}>
+                      <button className="toggle" onClick={() => toggleBanner(b)} style={{ background: b.isActive ? '#E91E8C' : '#e0e0e0' }}>
                         <div className="toggle-dot" style={{ left: b.isActive ? '18px' : '3px' }} />
                       </button>
                     </div>
                   ))}
                 </div>
 
-                {/* Offers table */}
                 <div className="card">
                   <div style={{ padding: '13px 16px', borderBottom: '1px solid #f5f5f5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 13, fontWeight: 800 }}>العروض الحالية</span>
@@ -520,27 +514,20 @@ export default function AdminPage() {
                   ))}
                 </div>
 
-                {/* Customers */}
                 <div className="card" style={{ padding: 16 }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 14 }}>نظرة عامة على العملاء</div>
-                  <div style={{ position: 'relative', width: 110, height: 110, margin: '0 auto 14px' }}>
-                    <svg width={110} height={110} viewBox="0 0 110 110">
-                      <circle cx={55} cy={55} r={42} fill="none" stroke="#fce8f5" strokeWidth={14} />
-                      <circle cx={55} cy={55} r={42} fill="none" stroke="#E91E8C" strokeWidth={14} strokeDasharray={`${2 * Math.PI * 42 * 0.45} ${2 * Math.PI * 42 * 0.55}`} strokeDashoffset={2 * Math.PI * 42 * 0.25} strokeLinecap="round" />
-                      <circle cx={55} cy={55} r={42} fill="none" stroke="#10b981" strokeWidth={14} strokeDasharray={`${2 * Math.PI * 42 * 0.35} ${2 * Math.PI * 42 * 0.65}`} strokeDashoffset={-2 * Math.PI * 42 * 0.2} strokeLinecap="round" />
-                      <text x={55} y={51} textAnchor="middle" fontSize="14" fontWeight="900" fill="#1a1a1a">12,856</text>
-                      <text x={55} y={65} textAnchor="middle" fontSize="9" fill="#aaa">إجمالي العملاء</text>
-                    </svg>
-                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 14 }}>إحصائيات سريعة</div>
                   {[
-                    { l: 'عملاء جدد', p: '35%', c: '#E91E8C' },
-                    { l: 'عملاء مكررون', p: '45%', c: '#10b981' },
-                    { l: 'عملاء غير نشطين', p: '20%', c: '#e0e0e0' },
-                  ].map((c, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontSize: 12 }}>
-                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: c.c, flexShrink: 0 }} />
-                      <span style={{ flex: 1, color: '#555' }}>{c.l}</span>
-                      <span style={{ fontWeight: 700 }}>{c.p}</span>
+                    { l: 'طلبات اليوم', v: orders.filter(o => new Date(o.createdAt).toDateString() === new Date().toDateString()).length, c: '#E91E8C' },
+                    { l: 'طلبات معلقة', v: pendingCount, c: '#f59e0b' },
+                    { l: 'تم التوصيل', v: orders.filter(o => o.status === 'delivered').length, c: '#10b981' },
+                    { l: 'ملغية', v: orders.filter(o => o.status === 'cancelled').length, c: '#ef4444' },
+                  ].map((s, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.c }} />
+                        <span style={{ fontSize: 12, color: '#555' }}>{s.l}</span>
+                      </div>
+                      <span style={{ fontSize: 16, fontWeight: 800, color: s.c }}>{s.v}</span>
                     </div>
                   ))}
                 </div>
@@ -548,7 +535,7 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* ═══ ORDERS ═══ */}
+          {/* ORDERS, PRODUCTS, BANNERS, CATEGORIES — same as before */}
           {page === 'orders' && (
             <div style={{ display: 'grid', gridTemplateColumns: selectedOrder ? '1fr 300px' : '1fr', gap: 16 }}>
               <div className="card">
@@ -566,10 +553,7 @@ export default function AdminPage() {
                   const st = STATUS[o.status] || STATUS.pending;
                   return (
                     <div key={o._id} className="trow" style={{ gridTemplateColumns: '1fr 80px 60px 90px 80px', background: selectedOrder?._id === o._id ? '#fce8f5' : undefined }} onClick={() => setSelectedOrder(selectedOrder?._id === o._id ? null : o)}>
-                      <div>
-                        <div style={{ fontWeight: 700 }}>{o.name || o.customer?.name}</div>
-                        <div style={{ fontSize: 11, color: '#aaa' }}>{o.phone || o.customer?.phone}</div>
-                      </div>
+                      <div><div style={{ fontWeight: 700 }}>{o.name || o.customer?.name}</div><div style={{ fontSize: 11, color: '#aaa' }}>{o.phone || o.customer?.phone}</div></div>
                       <span style={{ fontWeight: 800, color: '#E91E8C' }}>{o.total} ج</span>
                       <span style={{ color: '#888' }}>{o.items?.length}</span>
                       <span className="badge" style={{ background: st.bg, color: st.color }}>{st.label}</span>
@@ -579,7 +563,6 @@ export default function AdminPage() {
                 })}
                 {orders.length === 0 && <div style={{ padding: 40, textAlign: 'center', color: '#ccc' }}>لا توجد طلبات</div>}
               </div>
-
               {selectedOrder && (
                 <div className="card" style={{ height: 'fit-content', position: 'sticky', top: 80 }}>
                   <div style={{ padding: '14px 18px', borderBottom: '1px solid #f5f5f5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -608,26 +591,13 @@ export default function AdminPage() {
                       ))}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900, fontSize: 15, borderTop: '1px solid #f5f5f5', paddingTop: 12, marginBottom: 16 }}>
-                      <span>الإجمالي</span>
-                      <span style={{ color: '#E91E8C' }}>{selectedOrder.total} ج</span>
+                      <span>الإجمالي</span><span style={{ color: '#E91E8C' }}>{selectedOrder.total} ج</span>
                     </div>
                     <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>تغيير الحالة</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {[
-                        { id: 'placed', l: 'جديد' },
-                        { id: 'preparing', l: 'جاري التحضير' },
-                        { id: 'onway', l: 'في الطريق' },
-                        { id: 'delivered', l: 'تم التوصيل' },
-                        { id: 'cancelled', l: 'إلغاء' },
-                      ].map(s => {
-                        const st = STATUS[s.id];
-                        const isActive = selectedOrder.status === s.id;
-                        return (
-                          <button key={s.id} onClick={() => updateStatus(selectedOrder._id, s.id)}
-                            style={{ padding: '9px 14px', borderRadius: 8, border: `1.5px solid ${isActive ? st.color : '#eee'}`, background: isActive ? st.bg : '#fff', color: isActive ? st.color : '#555', fontSize: 13, fontWeight: isActive ? 700 : 500, cursor: 'pointer', textAlign: 'right', fontFamily: 'Tajawal' }}>
-                            {s.l}
-                          </button>
-                        );
+                      {[{id:'placed',l:'جديد'},{id:'preparing',l:'جاري التحضير'},{id:'onway',l:'في الطريق'},{id:'delivered',l:'تم التوصيل'},{id:'cancelled',l:'إلغاء'}].map(s => {
+                        const st = STATUS[s.id]; const isActive = selectedOrder.status === s.id;
+                        return (<button key={s.id} onClick={() => updateStatus(selectedOrder._id, s.id)} style={{ padding: '9px 14px', borderRadius: 8, border: `1.5px solid ${isActive ? st.color : '#eee'}`, background: isActive ? st.bg : '#fff', color: isActive ? st.color : '#555', fontSize: 13, fontWeight: isActive ? 700 : 500, cursor: 'pointer', textAlign: 'right', fontFamily: 'Tajawal' }}>{s.l}</button>);
                       })}
                     </div>
                   </div>
@@ -636,7 +606,6 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* ═══ PRODUCTS ═══ */}
           {page === 'products' && (
             <div>
               <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
@@ -650,26 +619,16 @@ export default function AdminPage() {
                     <button className="btn-ghost" onClick={() => { setShowProductForm(false); setEditProduct({}); }}>إلغاء ×</button>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                    {[
-                      { k: 'name', l: 'الاسم *', ph: 'اسم المنتج', t: 'text' },
-                      { k: 'price', l: 'السعر *', ph: '0', t: 'number' },
-                      { k: 'old_price', l: 'السعر القديم', ph: '0', t: 'number' },
-                      { k: 'discount', l: 'الخصم %', ph: '0', t: 'number' },
-                      { k: 'category', l: 'القسم', ph: 'بقالة', t: 'text' },
-                      { k: 'unit', l: 'الوحدة', ph: '1 لتر', t: 'text' },
-                      { k: 'image', l: 'رابط الصورة', ph: 'https://...', t: 'text' },
-                    ].map(f => (
+                    {[{k:'name',l:'الاسم *',ph:'اسم المنتج',t:'text'},{k:'price',l:'السعر *',ph:'0',t:'number'},{k:'old_price',l:'السعر القديم',ph:'0',t:'number'},{k:'discount',l:'الخصم %',ph:'0',t:'number'},{k:'category',l:'القسم',ph:'بقالة',t:'text'},{k:'unit',l:'الوحدة',ph:'1 لتر',t:'text'},{k:'image',l:'رابط الصورة',ph:'https://...',t:'text'}].map(f => (
                       <div key={f.k}>
                         <label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 5 }}>{f.l}</label>
-                        <input className="inp" type={f.t} placeholder={f.ph} value={(editProduct as Record<string, any>)[f.k] || ''}
-                          onChange={e => setEditProduct(prev => ({ ...prev, [f.k]: f.t === 'number' ? +e.target.value : e.target.value }))} />
+                        <input className="inp" type={f.t} placeholder={f.ph} value={(editProduct as Record<string,any>)[f.k] || ''} onChange={e => setEditProduct(prev => ({ ...prev, [f.k]: f.t === 'number' ? +e.target.value : e.target.value }))} />
                       </div>
                     ))}
                   </div>
                   <div style={{ marginBottom: 14 }}>
                     <label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 5 }}>الوصف</label>
-                    <textarea className="inp" rows={3} placeholder="وصف المنتج..." value={editProduct.description || ''}
-                      onChange={e => setEditProduct(prev => ({ ...prev, description: e.target.value }))} style={{ resize: 'none' }} />
+                    <textarea className="inp" rows={3} placeholder="وصف المنتج..." value={editProduct.description || ''} onChange={e => setEditProduct(prev => ({ ...prev, description: e.target.value }))} style={{ resize: 'none' }} />
                   </div>
                   <button className="btn-pink" onClick={saveProduct}>{isEditMode ? 'حفظ التعديلات' : 'إضافة المنتج'}</button>
                 </div>
@@ -683,10 +642,7 @@ export default function AdminPage() {
                     <div style={{ width: 40, height: 40, borderRadius: 8, background: '#f5f5f5', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {p.image ? <img src={p.image} style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} /> : <span style={{ fontSize: 18 }}>🛍️</span>}
                     </div>
-                    <div>
-                      <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                      <div style={{ fontSize: 11, color: '#aaa' }}>{p.unit}</div>
-                    </div>
+                    <div><div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div><div style={{ fontSize: 11, color: '#aaa' }}>{p.unit}</div></div>
                     <span style={{ color: '#666', fontSize: 12 }}>{p.category}</span>
                     <span style={{ fontWeight: 800, color: '#E91E8C' }}>{p.price} ج</span>
                     <span style={{ color: p.discount ? '#10b981' : '#ddd' }}>{p.discount ? `-${p.discount}%` : '-'}</span>
@@ -701,17 +657,15 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* ═══ BANNERS ═══ */}
           {page === 'banners' && (
             <div>
               <div className="card" style={{ padding: 20, marginBottom: 14 }}>
                 <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 14 }}>إضافة بنر جديد</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px auto', gap: 10, alignItems: 'end' }}>
-                  {[{ k: 'title', l: 'العنوان', ph: 'عنوان البنر', t: 'text' }, { k: 'image', l: 'رابط الصورة', ph: 'https://...', t: 'text' }, { k: 'order', l: 'الترتيب', ph: '1', t: 'number' }].map(f => (
+                  {[{k:'title',l:'العنوان',ph:'عنوان البنر',t:'text'},{k:'image',l:'رابط الصورة',ph:'https://...',t:'text'},{k:'order',l:'الترتيب',ph:'1',t:'number'}].map(f => (
                     <div key={f.k}>
                       <label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 5 }}>{f.l}</label>
-                      <input className="inp" type={f.t} placeholder={f.ph} value={(newBanner as Record<string, any>)[f.k]}
-                        onChange={e => setNewBanner(prev => ({ ...prev, [f.k]: f.t === 'number' ? +e.target.value : e.target.value }))} />
+                      <input className="inp" type={f.t} placeholder={f.ph} value={(newBanner as Record<string,any>)[f.k]} onChange={e => setNewBanner(prev => ({ ...prev, [f.k]: f.t === 'number' ? +e.target.value : e.target.value }))} />
                     </div>
                   ))}
                   <button className="btn-pink" onClick={addBanner} style={{ height: 42 }}>+ إضافة</button>
@@ -729,18 +683,14 @@ export default function AdminPage() {
                           <input className="inp" value={editBanner.title} onChange={e => setEditBanner({ ...editBanner, title: e.target.value })} style={{ flex: 1 }} />
                           <input className="inp" value={editBanner.image} onChange={e => setEditBanner({ ...editBanner, image: e.target.value })} style={{ flex: 2 }} />
                         </div>
-                      ) : (
-                        <><div style={{ fontSize: 13, fontWeight: 700, marginBottom: 3 }}>{b.title || 'بدون عنوان'}</div><div style={{ fontSize: 11, color: '#aaa' }}>ترتيب: {b.order}</div></>
-                      )}
+                      ) : (<><div style={{ fontSize: 13, fontWeight: 700, marginBottom: 3 }}>{b.title || 'بدون عنوان'}</div><div style={{ fontSize: 11, color: '#aaa' }}>ترتيب: {b.order}</div></>)}
                     </div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <button className="toggle" onClick={() => toggleBanner(b)} style={{ background: b.isActive ? '#E91E8C' : '#e0e0e0' }}>
                         <div className="toggle-dot" style={{ left: b.isActive ? '18px' : '3px' }} />
                       </button>
                       <span style={{ fontSize: 12, color: b.isActive ? '#E91E8C' : '#aaa', fontWeight: 600, width: 38 }}>{b.isActive ? 'نشط' : 'موقوف'}</span>
-                      {editBanner?._id === b._id
-                        ? <button className="btn-pink" style={{ padding: '7px 14px', fontSize: 12 }} onClick={saveBanner}>حفظ</button>
-                        : <button className="btn-ghost" onClick={() => setEditBanner(b)}>تعديل</button>}
+                      {editBanner?._id === b._id ? <button className="btn-pink" style={{ padding: '7px 14px', fontSize: 12 }} onClick={saveBanner}>حفظ</button> : <button className="btn-ghost" onClick={() => setEditBanner(b)}>تعديل</button>}
                       <button className="btn-red" onClick={() => deleteBanner(b._id)}>حذف</button>
                     </div>
                   </div>
@@ -750,17 +700,15 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* ═══ CATEGORIES ═══ */}
           {page === 'categories' && (
             <div>
               <div className="card" style={{ padding: 20, marginBottom: 14 }}>
                 <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 14 }}>إضافة قسم جديد</div>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'end' }}>
-                  {[{ k: 'name', l: 'اسم القسم', ph: 'بقالة' }, { k: 'icon', l: 'أيقونة', ph: '🛒' }].map(f => (
+                  {[{k:'name',l:'اسم القسم',ph:'بقالة'},{k:'icon',l:'أيقونة',ph:'🛒'}].map(f => (
                     <div key={f.k} style={{ flex: 1 }}>
                       <label style={{ fontSize: 12, color: '#888', display: 'block', marginBottom: 5 }}>{f.l}</label>
-                      <input className="inp" placeholder={f.ph} value={(newCat as Record<string, string>)[f.k]}
-                        onChange={e => setNewCat(prev => ({ ...prev, [f.k]: e.target.value }))} />
+                      <input className="inp" placeholder={f.ph} value={(newCat as Record<string,string>)[f.k]} onChange={e => setNewCat(prev => ({ ...prev, [f.k]: e.target.value }))} />
                     </div>
                   ))}
                   <button className="btn-pink" onClick={addCategory} style={{ height: 42 }}>+ إضافة</button>
@@ -770,10 +718,7 @@ export default function AdminPage() {
                 {categories.map(c => (
                   <div key={c._id} className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span style={{ fontSize: 26 }}>{c.icon || '📂'}</span>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700 }}>{c.name}</div>
-                      <div style={{ fontSize: 11, color: '#aaa' }}>{products.filter(p => p.category === c.name).length} منتج</div>
-                    </div>
+                    <div style={{ flex: 1 }}><div style={{ fontSize: 14, fontWeight: 700 }}>{c.name}</div><div style={{ fontSize: 11, color: '#aaa' }}>{products.filter(p => p.category === c.name).length} منتج</div></div>
                     <button className="btn-red" onClick={() => deleteCategory(c._id)}>حذف</button>
                   </div>
                 ))}
@@ -782,7 +727,6 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* Placeholder */}
           {!['dashboard','orders','products','banners','categories'].includes(page) && (
             <div className="card" style={{ padding: 60, textAlign: 'center' }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>{allNavItems.find(i => i.id === page)?.icon}</div>
